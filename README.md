@@ -1,7 +1,7 @@
 PCAP Feature Extractor
 ===============
 This program takes as input a PCAP file and extracts the different network 
-layer headers and prints them out in a csv format. The output is printed in 
+layer headers and prints them out in a csv format. The output is printed in the 
 terminal.
 
 Usage
