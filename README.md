@@ -6,7 +6,7 @@ terminal.
 
 Usage
 =========================================================
-Compiler the program:
+Compile the program:
 ```bash
 $ gcc feature_extract.c
 ```
