@@ -1,0 +1,410 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <byteswap.h>
+
+
+#define FINFLAG 1
+#define SYNFLAG 2
+#define RESFLAG 4
+#define ACKFLAG 16
+ 
+struct pcap_hdr_s {
+        uint32_t magic_number;   /* magic number */
+        uint16_t version_major;  /* major version number */
+        uint16_t version_minor;  /* minor version number */
+        int32_t  thiszone;       /* GMT to local correction */
+        uint32_t sigfigs;        /* accuracy of timestamps */
+        uint32_t snaplen;        /* max length of captured packets, in octets */
+        uint32_t network;        /* data link type */
+};
+
+struct pcaprec_hdr_s {
+        uint32_t ts_sec;         /* timestamp seconds */
+        uint32_t ts_usec;        /* timestamp microseconds */
+        uint32_t incl_len;       /* number of octets of packet saved in file */
+        uint32_t orig_len;       /* actual length of packet */
+};
+
+
+/*B6 is rightmost byte*/
+struct mac{
+	char B1;
+	char B2;
+	char B3;
+	char B4;
+	char B5;
+	char B6;	
+};
+
+
+struct IP{
+	char B1;
+	char B2;
+	char B3;
+	char B4;
+};
+struct flow_rec{
+	char *ing;
+	struct mac *macSrc;
+	struct mac *macDst;
+	unsigned char EthType[2];
+	char *VlanID;
+	char *VlanPri;
+	struct IP *IPSrc;
+	struct IP *IPDst;
+	char IPProto;
+	char IPTOS;
+	char SrcPort[2];
+	char DstPort[2];
+	unsigned char Vlantag[2];
+	unsigned char Flags[2];
+	int SYN;
+	int FIN;
+	int RES;
+	int ACK;
+	
+};
+
+int bigEndian;
+
+uint32_t fix_end32(uint32_t __intput){
+	if (bigEndian == 1){
+		return __intput;
+	}
+	else{
+		return __bswap_32(__intput);
+	}
+
+}
+
+uint16_t fix_end16(uint16_t __intput){
+	if (bigEndian == 1){
+		return __intput;
+	}
+	else{
+		return __bswap_16(__intput);
+	}
+
+}
+void read_gen_headers(FILE *__fd){
+
+	struct pcap_hdr_s *pcap_General;
+
+
+	pcap_General = (struct pcap_hdr_s*)malloc(sizeof(struct pcap_hdr_s));    
+	fread(pcap_General, sizeof(struct pcap_hdr_s), 1, __fd); 
+
+   (pcap_General->magic_number);
+	if (pcap_General->magic_number == 2712847316 ){
+		bigEndian = 1;
+	}
+	else{
+		bigEndian=0;
+	}
+	
+	pcap_General->magic_number =fix_end32(pcap_General->magic_number);
+	pcap_General->version_major = fix_end16 (pcap_General->version_major);
+	pcap_General->version_minor = fix_end16 (pcap_General->version_minor);
+
+	pcap_General->sigfigs = fix_end16 (pcap_General->sigfigs);
+	pcap_General->snaplen = fix_end16 (pcap_General->snaplen);
+	pcap_General->network = fix_end16 (pcap_General->network);
+	
+
+
+}
+
+void set_flags( struct flow_rec *__flow_rec){
+	if (FINFLAG & __flow_rec->Flags[1]){
+		__flow_rec->FIN = 1;	
+	}
+	else{
+		__flow_rec->FIN = 0;			
+	}
+
+	if (SYNFLAG & __flow_rec->Flags[1]){
+		__flow_rec->SYN = 1;	
+	}
+	else{
+		__flow_rec->SYN = 0;			
+	}
+
+	if (RESFLAG & __flow_rec->Flags[1]){
+		__flow_rec->RES = 1;	
+	}
+	else{
+		__flow_rec->RES = 0;			
+	}
+
+	if (ACKFLAG & __flow_rec->Flags[1]){
+		__flow_rec->ACK = 1;	
+	}
+	else{
+		__flow_rec->ACK = 0;			
+	}
+}
+
+void read_payload(FILE *__fd, int size,	struct flow_rec *__flow_rec){
+	char *_raw = (char *)malloc(size); 
+	char *_IP_raw = (char *)malloc(size); 
+	fread(_raw, size, 1, __fd); 
+	__flow_rec->macSrc->B1 = *_raw;
+	__flow_rec->macSrc->B2 = *(_raw+1);
+	__flow_rec->macSrc->B3 = *(_raw+2);
+	__flow_rec->macSrc->B4 = *(_raw+3);
+	__flow_rec->macSrc->B5 = *(_raw+4);
+	__flow_rec->macSrc->B6 = *(_raw+5);
+
+	__flow_rec->macDst->B1 = *(_raw+6);
+	__flow_rec->macDst->B2 = *(_raw+7);
+	__flow_rec->macDst->B3 = *(_raw+8);
+	__flow_rec->macDst->B4 = *(_raw+9);
+	__flow_rec->macDst->B5 = *(_raw+10);
+	__flow_rec->macDst->B6 = *(_raw+11);
+
+	__flow_rec->EthType[0] = *(_raw+12);
+	__flow_rec->EthType[1] = *(_raw+13);
+
+	if (__flow_rec->EthType[0] == 8 && __flow_rec->EthType[1] ==0 ){
+		_IP_raw = _raw+14;
+		__flow_rec->Vlantag[0] = '\0';
+		__flow_rec->Vlantag[1] = '\0';
+		}
+	else if (__flow_rec->EthType[0] == 129 && __flow_rec->EthType[1] ==0 ){
+		__flow_rec->Vlantag[0] = *(_raw+14);
+		__flow_rec->Vlantag[1] = *(_raw+15);
+		__flow_rec->EthType[0] = *(_raw+16);
+		__flow_rec->EthType[1] = *(_raw+17);
+		_IP_raw = _raw+18;
+	}
+		__flow_rec->IPTOS = *(_IP_raw+1);
+		__flow_rec->IPProto = *(_IP_raw+9);
+		
+		__flow_rec->IPSrc->B1 = *(_IP_raw+12);	
+		__flow_rec->IPSrc->B2 = *(_IP_raw+13);
+		__flow_rec->IPSrc->B3 = *(_IP_raw+14);
+		__flow_rec->IPSrc->B4 = *(_IP_raw+15);
+
+		__flow_rec->IPDst->B1 = *(_IP_raw+16);
+		__flow_rec->IPDst->B2 = *(_IP_raw+17);
+		__flow_rec->IPDst->B3 = *(_IP_raw+18);
+		__flow_rec->IPDst->B4 = *(_IP_raw+19);
+		
+		if ((__flow_rec->IPProto == 6) || (__flow_rec->IPProto == 17)){
+			__flow_rec->SrcPort[0] = *(_IP_raw+20);
+			__flow_rec->SrcPort[1] = *(_IP_raw+21);
+			__flow_rec->DstPort[0] = *(_IP_raw+22);
+			__flow_rec->DstPort[1] = *(_IP_raw+23);
+			if (__flow_rec->IPProto ==6){
+				__flow_rec->Flags[0] = *(_IP_raw+32);
+				__flow_rec->Flags[1] = *(_IP_raw+33);
+				set_flags(__flow_rec);
+			}
+			
+			
+
+		}
+	
+}
+
+int read_packet_header(FILE *__fd, struct pcaprec_hdr_s* __rec_header, 
+	struct flow_rec *__flow_rec){
+	int read_bytes;
+
+	  
+	read_bytes = fread(__rec_header, sizeof(struct pcaprec_hdr_s), 1, __fd); 
+	__rec_header->ts_sec =  fix_end32(__rec_header->ts_sec);
+	__rec_header->ts_usec =  fix_end32(__rec_header->ts_usec);
+    __rec_header->incl_len =  fix_end32(__rec_header->incl_len);
+	__rec_header->orig_len =  fix_end32(__rec_header->orig_len);
+
+	
+
+	__flow_rec->macSrc = (struct mac*)malloc(sizeof(struct mac)); 
+	__flow_rec->macDst = (struct mac*)malloc(sizeof(struct mac)); 
+
+	__flow_rec->IPSrc = (struct IP*)malloc(sizeof(struct IP)); 
+	__flow_rec->IPDst = (struct IP*)malloc(sizeof(struct IP));
+
+	read_payload(__fd, __rec_header->orig_len, __flow_rec);
+	return (read_bytes);
+}
+
+void print_flow_rec(struct flow_rec *__flow_rec, int __row, int __sec, int __usec){
+
+	int holder;
+	printf("%d", __row);
+	printf(",");
+	printf("%d",__sec);
+	printf(",");
+	printf("%d", __usec);
+	printf(",");
+		
+	printf("%02x", (unsigned char)__flow_rec->macSrc->B1);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macSrc->B2);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macSrc->B3);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macSrc->B4);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macSrc->B5);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macSrc->B6);
+	printf(",");
+
+
+	printf("%02x", (unsigned char)__flow_rec->macDst->B1);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macDst->B2);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macDst->B3);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macDst->B4);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macDst->B5);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->macDst->B6);
+	printf(",");
+
+		
+	printf("%02x", (unsigned char)__flow_rec->Vlantag[0]);
+	printf("%02x", (unsigned char)__flow_rec->Vlantag[1]);
+	printf(",");
+	printf("%02x", (unsigned char)__flow_rec->EthType[0]);
+	printf("%02x", (unsigned char)__flow_rec->EthType[1]);
+	
+
+	
+	if (__flow_rec->EthType[0] == 8 && __flow_rec->EthType[1] ==0 ) {
+
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPSrc->B1);
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPSrc->B2);
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPSrc->B3);
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPSrc->B4);
+
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPDst->B1);
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPDst->B2);
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPDst->B3);
+		printf(",");
+		printf("%02d", (unsigned char)__flow_rec->IPDst->B4);
+		
+		printf(",");
+		printf("%d", (unsigned char)__flow_rec->IPProto);
+		printf(",");
+		printf("%d", (unsigned char)__flow_rec->IPTOS);
+		if ((__flow_rec->IPProto == 6) || (__flow_rec->IPProto == 17)){
+			printf(",");
+			holder = (unsigned char)__flow_rec->SrcPort[0];
+			printf("%d", holder*256+(unsigned char)__flow_rec->SrcPort[1]);	
+			
+
+			printf(",");
+			holder = (unsigned char)__flow_rec->DstPort[0];
+			printf("%d", holder*256+(unsigned char)__flow_rec->DstPort[1]);			
+			if (__flow_rec->IPProto == 6){
+				printf(",");
+				printf("%d", (unsigned char)__flow_rec->FIN);
+				printf(",");
+				printf("%d", (unsigned char)__flow_rec->SYN);
+				printf(",");
+				printf("%d", (unsigned char)__flow_rec->RES);
+				printf(",");
+				printf("%d", (unsigned char)__flow_rec->ACK);
+				//printf("%02x", (unsigned char)__flow_rec->Flags[0]);
+				//printf("%02x", (unsigned char)__flow_rec->Flags[1]);
+			}
+			else{
+				printf(",0");
+				printf(",0");
+				printf(",0");
+				printf(",0");
+			}
+		}
+		else{
+			printf(",0");		
+			printf(",0");
+			printf(",0");
+			printf(",0");
+			printf(",0");
+			printf(",0");
+		}
+	}
+
+	else{
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+		printf(",0");
+	
+	}
+
+	
+	printf("\n");
+}
+
+void get_fd(FILE **__fd, char * __path){
+	
+	*__fd=fopen(__path, "r");
+}
+
+void print_headers(){
+	printf("Row, time(sec), time(micro/nano sec), Src Mac(Hex) M1, M2, M3, M4, M5, M6, Dst Mac(Hex) M1, M2, M3, M4, M5, M6, ");
+	printf("Vlan Tag(Hex), Eth Type(Hex), Src IP (Dec) IP1, IP2, IP3, IP4, Dst IP (Dec) IP1, IP2, IP3, IP4, IP Proto ");
+	printf("(Dec), IP Tos (Dec), Src Port(dec,) Dst Port (dec), FIN, SYN, RES, ACK\n");
+}
+
+int main(int argc, char *argv[]){
+	FILE *fd;
+	int i;
+	int read_bytes;
+	uint32_t Base; 
+	uint32_t Base_u; 
+	struct flow_rec *_flow_rec;
+	struct pcaprec_hdr_s * rec_header;
+	if (argc < 2){
+		printf("Input format: <Executable> <input file>\n");
+	}
+	else{
+		 _flow_rec =(struct flow_rec*)malloc(sizeof(struct flow_rec)); 
+		rec_header = (struct pcaprec_hdr_s*)malloc(sizeof(struct pcaprec_hdr_s));
+		get_fd(&fd, argv[1]);
+		print_headers();
+		read_gen_headers(fd);
+		read_bytes = 1;
+		 i = 1;
+		while(read_bytes >0){
+			read_bytes= read_packet_header(fd, rec_header, _flow_rec);
+			if (i ==1){
+				Base = 	(rec_header->ts_sec);
+				Base_u = 	(rec_header->ts_usec);
+			}
+
+			print_flow_rec(_flow_rec, i, rec_header->ts_sec-Base, rec_header->ts_usec-Base_u);
+				i++;
+
+		}
+		fclose(fd);
+	}
+}
