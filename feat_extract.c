@@ -370,7 +370,7 @@ void get_fd(FILE **__fd, char * __path){
 }
 
 void print_headers(){
-	printf("Row, time(sec), time(micro/nano sec), Src Mac(Hex) M1, M2, M3, M4, M5, M6, Dst Mac(Hex) M1, M2, M3, M4, M5, M6, ");
+	printf("Row, time(sec), time(micro/nano sec), M1, M2, M3, M4, M5, M6, Dst Mac(Hex) M1, M2, M3, M4, M5, M6, ");
 	printf("Vlan Tag(Hex), Eth Type(Hex), Src IP (Dec) IP1, IP2, IP3, IP4, Dst IP (Dec) IP1, IP2, IP3, IP4, IP Proto ");
 	printf("(Dec), IP Tos (Dec), Src Port(dec,) Dst Port (dec), FIN, SYN, RES, ACK\n");
 }
