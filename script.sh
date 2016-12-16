@@ -1,4 +1,5 @@
 #!/bin/bash
+
 #reads files from dumpinput and outputs them in Ouput folder
 
 

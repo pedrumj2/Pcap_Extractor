@@ -97,7 +97,7 @@ void read_gen_headers(FILE *__fd){
 	fread(pcap_General, sizeof(struct pcap_hdr_s), 1, __fd); 
 
    (pcap_General->magic_number);
-	if (pcap_General->magic_number == 2712847316 ){
+	if (pcap_General->magic_number == 2712847316u ){
 		bigEndian = 1;
 	}
 	else{
@@ -242,31 +242,31 @@ void print_flow_rec(struct flow_rec *__flow_rec, int __row, int __sec, int __use
 	printf("%d", __usec);
 	printf(",");
 		
-	printf("%02x", (unsigned char)__flow_rec->macSrc->B1);
+	printf("%d", (unsigned char)__flow_rec->macSrc->B1);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macSrc->B2);
+	printf("%d", (unsigned char)__flow_rec->macSrc->B2);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macSrc->B3);
+	printf("%d", (unsigned char)__flow_rec->macSrc->B3);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macSrc->B4);
+	printf("%d", (unsigned char)__flow_rec->macSrc->B4);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macSrc->B5);
+	printf("%d", (unsigned char)__flow_rec->macSrc->B5);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macSrc->B6);
+	printf("%d", (unsigned char)__flow_rec->macSrc->B6);
 	printf(",");
 
 
-	printf("%02x", (unsigned char)__flow_rec->macDst->B1);
+	printf("%d", (unsigned char)__flow_rec->macDst->B1);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macDst->B2);
+	printf("%d", (unsigned char)__flow_rec->macDst->B2);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macDst->B3);
+	printf("%d", (unsigned char)__flow_rec->macDst->B3);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macDst->B4);
+	printf("%d", (unsigned char)__flow_rec->macDst->B4);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macDst->B5);
+	printf("%d", (unsigned char)__flow_rec->macDst->B5);
 	printf(",");
-	printf("%02x", (unsigned char)__flow_rec->macDst->B6);
+	printf("%d", (unsigned char)__flow_rec->macDst->B6);
 	printf(",");
 
 		
@@ -290,13 +290,13 @@ void print_flow_rec(struct flow_rec *__flow_rec, int __row, int __sec, int __use
 		printf("%02d", (unsigned char)__flow_rec->IPSrc->B4);
 
 		printf(",");
-		printf("%02d", (unsigned char)__flow_rec->IPDst->B1);
+		printf("%d", (unsigned char)__flow_rec->IPDst->B1);
 		printf(",");
-		printf("%02d", (unsigned char)__flow_rec->IPDst->B2);
+		printf("%d", (unsigned char)__flow_rec->IPDst->B2);
 		printf(",");
-		printf("%02d", (unsigned char)__flow_rec->IPDst->B3);
+		printf("%d", (unsigned char)__flow_rec->IPDst->B3);
 		printf(",");
-		printf("%02d", (unsigned char)__flow_rec->IPDst->B4);
+		printf("%d", (unsigned char)__flow_rec->IPDst->B4);
 		
 		printf(",");
 		printf("%d", (unsigned char)__flow_rec->IPProto);
@@ -370,9 +370,9 @@ void get_fd(FILE **__fd, char * __path){
 }
 
 void print_headers(){
-	printf("Row, time(sec), time(micro/nano sec), M1, M2, M3, M4, M5, M6, Dst Mac(Hex) M1, M2, M3, M4, M5, M6, ");
-	printf("Vlan Tag(Hex), Eth Type(Hex), Src IP (Dec) IP1, IP2, IP3, IP4, Dst IP (Dec) IP1, IP2, IP3, IP4, IP Proto ");
-	printf("(Dec), IP Tos (Dec), Src Port(dec,) Dst Port (dec), FIN, SYN, RES, ACK\n");
+	printf("Row,time,time_u,SM1,SM2,SM3,SM4,SM5,SM6,DM1,DM2,DM3,DM4,DM5,DM6,");
+	printf("VlanTag_X,EthType_X,SIP1,SIP2,SIP3,SIP4,DIP1,DIP2,DIP3,DIP4,IPProto,");
+	printf("IPTos,SrcPort,DstPort,FIN,SYN,RES,ACK\n");
 }
 
 int main(int argc, char *argv[]){
@@ -397,8 +397,8 @@ int main(int argc, char *argv[]){
 		while(read_bytes >0){
 			read_bytes= read_packet_header(fd, rec_header, _flow_rec);
 			if (i ==1){
-				Base = 	(rec_header->ts_sec);
-				Base_u = 	(rec_header->ts_usec);
+				Base = 	0;//(rec_header->ts_sec);
+				Base_u = 0;//	(rec_header->ts_usec);
 			}
 
 			print_flow_rec(_flow_rec, i, rec_header->ts_sec-Base, rec_header->ts_usec-Base_u);
