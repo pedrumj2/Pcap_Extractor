@@ -3,13 +3,15 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <byteswap.h>
-
+#include <errno.h>
 
 #define FINFLAG 1
 #define SYNFLAG 2
 #define RESFLAG 4
 #define ACKFLAG 16
  
+FILE *fopen64(const char *filename, const char *mode);
+
 struct pcap_hdr_s {
         uint32_t magic_number;   /* magic number */
         uint16_t version_major;  /* major version number */
@@ -364,9 +366,17 @@ void print_flow_rec(struct flow_rec *__flow_rec, int __row, int __sec, int __use
 	printf("\n");
 }
 
-void get_fd(FILE **__fd, char * __path){
-	
-	*__fd=fopen(__path, "r");
+int get_fd(FILE **__fd, char * __path){
+	printf("Error %d \n", errno);
+ FILE *fd;
+	 *__fd=fopen64(__path, "r");
+   if (__fd ==NULL){
+     return 1;
+   }
+   else{
+     return 0;
+   }
+   
 }
 
 void print_headers(){
@@ -375,6 +385,7 @@ void print_headers(){
 	printf("IPTos,SrcPort,DstPort,FIN,SYN,RES,ACK\n");
 }
 
+//Input format: <Executable> <input file>
 int main(int argc, char *argv[]){
 	FILE *fd;
 	int i;
@@ -385,26 +396,31 @@ int main(int argc, char *argv[]){
 	struct pcaprec_hdr_s * rec_header;
 	if (argc < 2){
 		printf("Input format: <Executable> <input file>\n");
+   return;
 	}
-	else{
-		 _flow_rec =(struct flow_rec*)malloc(sizeof(struct flow_rec)); 
-		rec_header = (struct pcaprec_hdr_s*)malloc(sizeof(struct pcaprec_hdr_s));
-		get_fd(&fd, argv[1]);
-		print_headers();
-		read_gen_headers(fd);
-		read_bytes = 1;
-		 i = 1;
-		while(read_bytes >0){
-			read_bytes= read_packet_header(fd, rec_header, _flow_rec);
-			if (i ==1){
-				Base = 	0;//(rec_header->ts_sec);
-				Base_u = 0;//	(rec_header->ts_usec);
-			}
 
-			print_flow_rec(_flow_rec, i, rec_header->ts_sec-Base, rec_header->ts_usec-Base_u);
-				i++;
-
-		}
-		fclose(fd);
-	}
+  _flow_rec =(struct flow_rec*)malloc(sizeof(struct flow_rec)); 
+  rec_header = (struct pcaprec_hdr_s*)malloc(sizeof(struct pcaprec_hdr_s));
+  if(get_fd(&fd, argv[1])){
+    printf("unable to open file\n");
+    printf("Error %d \n", errno);
+    return;
+  }
+  print_headers();
+  read_gen_headers(fd);
+  read_bytes = 1;
+  i = 1;
+  while(read_bytes >0){
+    read_bytes= read_packet_header(fd, rec_header, _flow_rec);
+    if (i ==1){
+      Base = 	0;//(rec_header->ts_sec);
+      Base_u = 0;//	(rec_header->ts_usec);
+    }
+    
+    print_flow_rec(_flow_rec, i, rec_header->ts_sec-Base, rec_header->ts_usec-Base_u);
+    i++;
+  }
+  
+  fclose(fd);
+	
 }
