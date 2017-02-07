@@ -12,7 +12,7 @@
  
 FILE *fopen64(const char *filename, const char *mode);
 
-struct pcap_hdr_s {
+struct pcap_header {
         uint32_t magic_number;   /* magic number */
         uint16_t version_major;  /* major version number */
         uint16_t version_minor;  /* minor version number */
@@ -22,7 +22,7 @@ struct pcap_hdr_s {
         uint32_t network;        /* data link type */
 };
 
-struct pcaprec_hdr_s {
+struct pcap_record {
         uint32_t ts_sec;         /* timestamp seconds */
         uint32_t ts_usec;        /* timestamp microseconds */
         uint32_t incl_len;       /* number of octets of packet saved in file */
@@ -48,6 +48,7 @@ struct IP{
 	char B4;
 };
 struct flow_rec{
+  
 	char *ing;
 	struct mac *macSrc;
 	struct mac *macDst;
@@ -92,13 +93,13 @@ uint16_t fix_end16(uint16_t __intput){
 }
 void read_gen_headers(FILE *__fd){
 
-	struct pcap_hdr_s *pcap_General;
+	struct pcap_header *pcap_General;
 
 
-	pcap_General = (struct pcap_hdr_s*)malloc(sizeof(struct pcap_hdr_s));    
-	fread(pcap_General, sizeof(struct pcap_hdr_s), 1, __fd); 
+	pcap_General = (struct pcap_header*)malloc(sizeof(struct pcap_header));    
+	fread(pcap_General, sizeof(struct pcap_header), 1, __fd); 
 
-   (pcap_General->magic_number);
+  (pcap_General->magic_number);
 	if (pcap_General->magic_number == 2712847316u ){
 		bigEndian = 1;
 	}
@@ -113,7 +114,7 @@ void read_gen_headers(FILE *__fd){
 	pcap_General->sigfigs = fix_end16 (pcap_General->sigfigs);
 	pcap_General->snaplen = fix_end16 (pcap_General->snaplen);
 	pcap_General->network = fix_end16 (pcap_General->network);
-	
+	free(pcap_General);
 
 
 }
@@ -150,7 +151,7 @@ void set_flags( struct flow_rec *__flow_rec){
 
 void read_payload(FILE *__fd, int size,	struct flow_rec *__flow_rec){
 	char *_raw = (char *)malloc(size); 
-	char *_IP_raw = (char *)malloc(size); 
+	char *_IP_raw;
 	fread(_raw, size, 1, __fd); 
 	__flow_rec->macSrc->B1 = *_raw;
 	__flow_rec->macSrc->B2 = *(_raw+1);
@@ -204,25 +205,19 @@ void read_payload(FILE *__fd, int size,	struct flow_rec *__flow_rec){
 				__flow_rec->Flags[1] = *(_IP_raw+33);
 				set_flags(__flow_rec);
 			}
-			
-			
-
 		}
+   free(_raw);
+   
 	
 }
 
-int read_packet_header(FILE *__fd, struct pcaprec_hdr_s* __rec_header, 
+void  read_packet_header(FILE *__fd, struct pcap_record* __rec_header, 
 	struct flow_rec *__flow_rec){
-	int read_bytes;
-
-	  
-	read_bytes = fread(__rec_header, sizeof(struct pcaprec_hdr_s), 1, __fd); 
+  
 	__rec_header->ts_sec =  fix_end32(__rec_header->ts_sec);
 	__rec_header->ts_usec =  fix_end32(__rec_header->ts_usec);
-    __rec_header->incl_len =  fix_end32(__rec_header->incl_len);
+  __rec_header->incl_len =  fix_end32(__rec_header->incl_len);
 	__rec_header->orig_len =  fix_end32(__rec_header->orig_len);
-
-	
 
 	__flow_rec->macSrc = (struct mac*)malloc(sizeof(struct mac)); 
 	__flow_rec->macDst = (struct mac*)malloc(sizeof(struct mac)); 
@@ -231,7 +226,6 @@ int read_packet_header(FILE *__fd, struct pcaprec_hdr_s* __rec_header,
 	__flow_rec->IPDst = (struct IP*)malloc(sizeof(struct IP));
 
 	read_payload(__fd, __rec_header->orig_len, __flow_rec);
-	return (read_bytes);
 }
 
 void print_flow_rec(struct flow_rec *__flow_rec, int __row, int __sec, int __usec){
@@ -367,7 +361,7 @@ void print_flow_rec(struct flow_rec *__flow_rec, int __row, int __sec, int __use
 }
 
 int get_fd(FILE **__fd, char * __path){
-	printf("Error %d \n", errno);
+
  FILE *fd;
 	 *__fd=fopen64(__path, "r");
    if (__fd ==NULL){
@@ -393,14 +387,14 @@ int main(int argc, char *argv[]){
 	uint32_t Base; 
 	uint32_t Base_u; 
 	struct flow_rec *_flow_rec;
-	struct pcaprec_hdr_s * rec_header;
+	struct pcap_record * rec_header;
 	if (argc < 2){
 		printf("Input format: <Executable> <input file>\n");
    return;
 	}
 
   _flow_rec =(struct flow_rec*)malloc(sizeof(struct flow_rec)); 
-  rec_header = (struct pcaprec_hdr_s*)malloc(sizeof(struct pcaprec_hdr_s));
+  rec_header = (struct pcap_record*)malloc(sizeof(struct pcap_record));
   if(get_fd(&fd, argv[1])){
     printf("unable to open file\n");
     printf("Error %d \n", errno);
@@ -410,15 +404,33 @@ int main(int argc, char *argv[]){
   read_gen_headers(fd);
   read_bytes = 1;
   i = 1;
+  int j;
+  read_bytes = fread(rec_header, sizeof(struct pcap_record), 1, fd); 
+  printf("My process ID : %d\n", getpid());
   while(read_bytes >0){
-    read_bytes= read_packet_header(fd, rec_header, _flow_rec);
+  	
+   read_packet_header(fd, rec_header, _flow_rec);
+    
     if (i ==1){
       Base = 	0;//(rec_header->ts_sec);
       Base_u = 0;//	(rec_header->ts_usec);
     }
     
     print_flow_rec(_flow_rec, i, rec_header->ts_sec-Base, rec_header->ts_usec-Base_u);
+    free(_flow_rec->macSrc);
+    free(_flow_rec->macDst);
+    free(_flow_rec->IPSrc);
+    free(_flow_rec->IPDst);
+ //free(_flow_rec);
     i++;
+
+    //
+    if (i==1907833){
+      j = 4;
+    }
+    
+    	read_bytes = fread(rec_header, sizeof(struct pcap_record), 1, fd); 
+    
   }
   
   fclose(fd);
