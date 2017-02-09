@@ -4,6 +4,8 @@
 #include <inttypes.h>
 #include <byteswap.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define FINFLAG 1
 #define SYNFLAG 2
@@ -182,6 +184,10 @@ void read_payload(FILE *__fd, int size,	struct flow_rec *__flow_rec){
 		__flow_rec->EthType[1] = *(_raw+17);
 		_IP_raw = _raw+18;
 	}
+ else{
+   return;
+ }
+ 
 		__flow_rec->IPTOS = *(_IP_raw+1);
 		__flow_rec->IPProto = *(_IP_raw+9);
 		
@@ -390,7 +396,7 @@ int main(int argc, char *argv[]){
 	struct pcap_record * rec_header;
 	if (argc < 2){
 		printf("Input format: <Executable> <input file>\n");
-   return;
+   return 1;
 	}
 
   _flow_rec =(struct flow_rec*)malloc(sizeof(struct flow_rec)); 
@@ -398,7 +404,7 @@ int main(int argc, char *argv[]){
   if(get_fd(&fd, argv[1])){
     printf("unable to open file\n");
     printf("Error %d \n", errno);
-    return;
+    return 1;
   }
   print_headers();
   read_gen_headers(fd);
