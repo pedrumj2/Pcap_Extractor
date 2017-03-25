@@ -4,7 +4,7 @@ This program takes as input a PCAP file and extracts the different network
 layer headers and prints them out in a csv format. The output is printed in the 
 terminal.
 
-Usage
+Usage 1, feat_extract.c
 =========================================================
 Compile the program:
 ```bash
@@ -20,4 +20,12 @@ file:
 $ ./a.out ../Input.csv >> output.csv
 ```
 
+Usage 2, tshark_script.sh
+=========================================================
+call the script as follows:
+
+```bash
+tshark_script file.pcap >  output.csv
+```
+where file.pcap is the input .pcap file.
 
