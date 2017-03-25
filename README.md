@@ -25,7 +25,7 @@ Usage 2, tshark_script.sh
 call the script as follows:
 
 ```bash
-tshark_script file.pcap >  output.csv
+tshark_script.sh file.pcap >  output.csv
 ```
 where file.pcap is the input .pcap file.
 
